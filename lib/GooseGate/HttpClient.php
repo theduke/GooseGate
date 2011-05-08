@@ -42,16 +42,19 @@ class HttpClient
     // Tracker variables
     var $redirect_count = 0;
     var $cookie_host = '';
-    function HttpClient($host, $port=80) {
+    
+    function __construct($host, $port=80) {
         $this->host = $host;
         $this->port = $port;
     }
+    
     function get($path, $data = false) {
         $this->path = $path;
         $this->method = 'GET';
         if ($data) {
             $this->path .= '?'.$this->buildQueryString($data);
         }
+        
         return $this->doRequest();
     }
     function post($path, $data) {
@@ -81,22 +84,26 @@ class HttpClient
     }
     function doRequest() {
         // Performs the actual HTTP request, returning true or false depending on outcome
-		if (!$fp = @fsockopen($this->host, $this->port, $errno, $errstr, $this->timeout)) {
+
+      if (!$fp = @fsockopen($this->host, $this->port, $errno, $errstr, $this->timeout)) {
 		    // Set error message
-            switch($errno) {
+      switch($errno) {
 				case -3:
 					$this->errormsg = 'Socket creation failed (-3)';
+					break;
 				case -4:
 					$this->errormsg = 'DNS lookup failure (-4)';
+					break;
 				case -5:
 					$this->errormsg = 'Connection refused or timed out (-5)';
+					break;
 				default:
 					$this->errormsg = 'Connection failed ('.$errno.')';
 			    $this->errormsg .= ' '.$errstr;
 			    $this->debug($this->errormsg);
-			}
+			  }
 			return false;
-        }
+    }
         socket_set_timeout($fp, $this->timeout);
         $request = $this->buildRequest();
         $this->debug('Request', $request);
@@ -191,6 +198,7 @@ class HttpClient
             }
             $location = isset($this->headers['location']) ? $this->headers['location'] : '';
             $uri = isset($this->headers['uri']) ? $this->headers['uri'] : '';
+
             if ($location || $uri) {
                 $url = parse_url($location.$uri);
                 // This will FAIL if redirect is to a different site

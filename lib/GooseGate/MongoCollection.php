@@ -32,25 +32,17 @@ class MongoCollection
 		return $this->name;
 	}
 	
+	/**
+	 * @return \GooseGate\MongoDB
+	 */
+	public function getDatabase()
+	{
+		return $this->db;
+	}
+	
 	public function find($criteria=null, $fields=null, $sortFields=null, $skip=null, $limit=null, $batch_size=20)
 	{
-		$path = '/' . $this->db->getName() . '/' . $this->name . '/_find';
-		$data = array();
-		
-		if ($criteria) $data['criteria'] = json_encode($criteria); 
-		if ($fields) $data['fields'] = json_encode($fields);
-		if ($sortFields) $data['sort'] = json_encode($sortFields);
-		if ($skip) $data['skip'] = $skip;
-		if ($limit) $data['limit'] = $limit;
-		
-		$data['batch_size'] = $batch_size;
-		
-		$result = $this->db->getConnection()->doRequest($path, $data, true);
-		
-		if ($result['ok'] !== 1)
-		{
-			throw new \Exception('Update failed');
-		}
+		return new MongoCursor($this, $criteria, $fields, $sortFields, $skip, $limit, $batch_size);
 	}
 	
 	/**
@@ -58,23 +50,34 @@ class MongoCollection
 	 */
 	public function insert(array $a)
 	{
-		$this->batchInsert(array($a));
+		$oids = $this->batchInsert(array($a));
+		return $oids[0];
 	}
 	
 	/**
 	 * @param array $a array of documents to insert
+	 * @retun array list of oids of the inserted documents
 	 */
 	public function batchInsert(array $a)
 	{
 		$path = '/' . $this->db->getName() . '/' . $this->name . '/_insert';
 		$data = array('docs' => json_encode($a));
 		
-		$result = $this->db->getConnection()->doRequest($path, $data);
+		$result = $this->db->getConnection()->doPost($path, $data);
 		
-		if ($result['status'] !== 1)
+		if (!(property_exists($result, 'oids') && count($result->oids) === count($a)))
 		{
-			throw new \Exception('Insert failed: ' . $result['status']['err']);
+			throw new \Exception('Insert failed.');
 		}
+		
+		$oids = array();
+		
+		foreach ($result->oids as $oid) 
+		{
+			$oids[] = $oid; 
+		}
+		
+		return $oids;
 	}
 	
 	/**
@@ -87,12 +90,7 @@ class MongoCollection
 			'criteria' => json_encode($criteria), 
 			'newobj' => json_encode($newData));
 		
-		$result = $this->db->getConnection()->doRequest($path, $data);
-		
-		if ($result['ok'] !== 1)
-		{
-			throw new \Exception('Update failed');
-		}
+		$result = $this->db->getConnection()->doPost($path, $data);
 	}
 	
 	/**
@@ -103,11 +101,6 @@ class MongoCollection
 		$path = '/' . $this->db->getName() . '/' . $this->name . '/_remove';
 		$data = array('criteria' => json_encode($criteria));
 		
-		$result = $this->db->getConnection()->doRequest($path, $data);
-		
-		if ($result['ok'] !== 1)
-		{
-			throw new \Exception('Remove failed');
-		}
+		$result = $this->db->getConnection()->doPost($path, $data);
 	}
 }

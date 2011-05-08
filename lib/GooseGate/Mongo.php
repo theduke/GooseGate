@@ -47,40 +47,69 @@ class Mongo
 		}
 		
 		$this->client = new HttpClient($data[0], $data[1]);
+		$this->client->handle_redirects = false;
+		
+		$this->connect();
 	}
 	
-	public function doRequest($path, $data=null, $forceGet=false)
+	public function authenticate($user, $password)
 	{
-		$result = ($data && !$forceGet) ? $this->client->post($path, $data) : $this->client->get($path);
+		$this->client->username = $user;
+		$this->client->password = $password;
+	}
+	
+	protected function doRequest($method, $path, $data=null, $addConnectionName=true)
+	{
+		if (!$data) $data = array();
+		if ($addConnectionName) $data['name'] = $this->connectionName;
 		
-		if (!$result)
+		if ($method === 'get') 
 		{
-			$msg = $this->client->getError();
-			throw new \Exception("Could not contact server '{$this->mongooseServer}': $msg");
+			$flag = $this->client->get($path, $data);
+		} else if ($method === 'post') {
+			$flag = $this->client->post($path, $data);
 		}
 		
+		if (!$flag)
+		{
+			$msg = $this->client->getError();
+			throw new \Exception("Could not contact server '" . $this->mongooseServer . "': $msg");
+		}
+		
+		$result = $this->client->getContent();
+
 		$json = json_decode($result);
 		if (!$result)
 		{
 			throw new \Exception("Could not decode response json: '$reponse'");
 		}
 		
+		if (property_exists($result, 'ok') && $result->ok === 0) 
+		{
+			throw new \Exception("API call $path failed. " + $result->errmsg);
+		}
+		
 		return $json;
+	}
+	
+	public function doGet($path, $data=null)
+	{
+		return $this->doRequest('get', $path, $data);
+	}
+	
+	public function doPost($path, $data)
+	{
+		return $this->doRequest('post', $path, $data);
 	}
 	
 	public function connect()
 	{
 		$this->connectionName = time();
 		
-		$result = $this->doRequest('/_connect', array(
+		$result = $this->doRequest('post', '/_connect', array(
 			'server' => $this->mongoServer,	
 			'name' => $this->connectionName
 		));
-		
-		if (!array_key_exists('ok', $result) && $result['ok'] === 1)
-		{
-			throw new \Exception('Could not connect: ' . json_encode($result));
-		}
 	}
 	
 	/**
