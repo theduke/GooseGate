@@ -8,11 +8,12 @@ require 'lib/GooseGate/MongoDB.php';
 
 use GooseGate\Mongo;
 
-$con = new Mongo('myserver:27080');
+$con = new Mongo('myserver.com:27080');
+
+$con->authenticate('user', 'password');
 
 $db = $con->testdb;
 $coll = $db->testcoll;
-
 
 $oid = $coll->insert(array('a' => 1, 'b' => '20'));
 
