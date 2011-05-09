@@ -73,4 +73,27 @@ class MongoDB
 	{
 		return new MongoCollection($this, $name);
 	}
+	
+	public function runCommand($spec)
+	{
+		$path = '/' . $this->name . '/_cmd';
+		$data = array('cmd' => json_encode($spec));
+		
+		$response = $this->connection->doPost($path, $data);
+		
+		return $response;
+	}
+	
+	public function authenticate($username, $password)
+	{
+		$path = '/' . $this->name . '/_authenticate';
+		$data = array(
+			'username' => $username,
+			'password' => $password
+		);
+		
+		$response = $this->connection->doPost($path, $data);
+		
+		return $response;
+	}
 }
