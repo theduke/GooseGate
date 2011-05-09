@@ -50,7 +50,7 @@ class Mongo
 	/**
 	 * @param string $server like domain.com:27080
 	 */
-	public function __construct($mongooseServer='localhost:27080', $mongoServer='localhost:27017')
+	public function __construct($mongoServer='localhost:27017', $mongooseServer='localhost:27080', $httpUsername=null, $httpPassword=null)
 	{
 		$this->mongooseServer = $mongooseServer;
 		$this->mongoServer = $mongoServer;
@@ -65,10 +65,15 @@ class Mongo
 		$this->client = new HttpClient($data[0], $data[1]);
 		$this->client->handle_redirects = false;
 		
+		if ($httpUsername && $httpPassword)
+		{
+			$this->setCredentials($httpUsername, $httpPassword);
+		}
+		
 		$this->connect();
 	}
 	
-	public function authenticate($user, $password)
+	public function setCredentials($user, $password)
 	{
 		$this->client->username = $user;
 		$this->client->password = $password;
